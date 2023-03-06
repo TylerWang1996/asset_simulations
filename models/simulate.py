@@ -32,7 +32,15 @@ class TimeSeriesSimulate:
         Returns:
             numpy.ndarray: Lower triangular matrix from Cholesky decomposition.
         """
-        chol = np.linalg.cholesky(covar)
+
+        # calculate the standard deviations of the variables
+        std_devs = np.sqrt(np.diag(covar))
+
+        # divide the covariance matrix by the outer product of the standard deviations
+        corr_matrix = covar / np.outer(std_devs, std_devs)
+
+        chol = np.linalg.cholesky(corr_matrix)
+
         return chol
 
     def simulate_gbm(self, mu=None, sigma=None):
