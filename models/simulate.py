@@ -3,8 +3,18 @@ import numpy as np
 
 
 class TimeSeriesSimulate:
-    def __init__(self, tickers, means, covar, years, steps_per_year, seed=None, sims=100):
+    """Simulates geometric Brownian motion for multiple assets.
 
+    Attributes:
+        tickers (list of str): Tickers of the assets.
+        means (numpy.ndarray): Mean returns for each asset.
+        covar (numpy.ndarray): Covariance matrix of returns for each asset.
+        years (int): Number of years to simulate.
+        steps_per_year (int): Number of time steps per year to simulate.
+        seed (int or None): Seed for the random number generator.
+        sims (int): Number of simulations to run.
+    """
+    def __init__(self, tickers, means, covar, years, steps_per_year, seed=None, sims=100):
         self.tickers = tickers
         self.means = means
         self.covar = covar
@@ -14,13 +24,27 @@ class TimeSeriesSimulate:
         self.sims = sims
 
     def cholesky_decomp(self, covar):
+        """Performs Cholesky decomposition on the covariance matrix.
 
+        Args:
+            covar (numpy.ndarray): Covariance matrix.
+
+        Returns:
+            numpy.ndarray: Lower triangular matrix from Cholesky decomposition.
+        """
         chol = np.linalg.cholesky(covar)
-
         return chol
 
     def simulate_gbm(self, mu=None, sigma=None):
+        """Simulates geometric Brownian motion for one asset.
 
+        Args:
+            mu (float or None): Mean return of the asset. If None, use the first element of self.means.
+            sigma (float or None): Standard deviation of the asset. If None, use the square root of the first diagonal element of self.covar.
+
+        Returns:
+            numpy.ndarray: Simulated prices of the asset.
+        """
         # extract parameters from class attributes
         n = self.steps_per_year * self.years
         T = self.years
@@ -56,45 +80,54 @@ class TimeSeriesSimulate:
         return St
 
     def agg_simulation(self):
+        """Simulates geometric Brownian motion for multiple assets.
 
+        Returns:
+            list of pandas.DataFrame: Simulated prices of each asset.
+        """
         n_assets = len(self.means)
 
         d_sim = {}
-        i = 0
-        while i < n_assets:
+        for i in range(n_assets):
             ticker = self.tickers[i]
             mu = self.means[i]
             sigma = np.sqrt(self.covar[i][i])
             sim = self.simulate_gbm(mu, sigma)
             df_sim = pd.DataFrame(sim)
             d_sim[ticker] = df_sim
-            i += 1
 
         dfs_sim = []
-        i = 0
         chol = self.cholesky_decomp(self.covar)
-        while i < self.sims:
+        for i in range(self.sims):
             df_sim = pd.DataFrame(columns=self.tickers)
             for col in df_sim:
                 df_sim[col] = d_sim[col][i]
             df_sim = np.matmul(chol, df_sim.T).T
             df_sim.set_axis(self.tickers, axis=1, inplace=True)
             dfs_sim.append(df_sim)
-            i += 1
 
         return dfs_sim
 
 
 def simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed, sims):
+    """Simulates geometric Brownian motion for a given set of asset prices.
+
+    Args:
+        prices_returns_df (pandas.DataFrame): DataFrame containing the asset prices.
+        years (int): Number of years to simulate.
+        steps_per_year (int): Number of time steps per year to simulate.
+        seed (int): Seed for the random number generator.
+        sims (int): Number of simulations to run.
+
+    Returns:
+        list of pandas.DataFrame: Simulated prices of each asset.
+    """
     # Calculate mean and covariance matrix
     mean_returns = prices_returns_df.mean().to_numpy()
     cov_matrix = prices_returns_df.cov().to_numpy()
-    print(mean_returns)
-    print(prices_returns_df.mean())
 
     # Extract tickers from columns of prices_returns_df
     tickers = list(prices_returns_df.columns)
-    print(tickers)
 
     # Create an instance of the TimeSeriesSimulate class
     ts = TimeSeriesSimulate(tickers, mean_returns, cov_matrix, years, steps_per_year, seed=seed, sims=sims)
