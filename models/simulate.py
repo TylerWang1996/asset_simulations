@@ -29,8 +29,9 @@ class TimeSeriesSimulate:
         Returns:
             list of lists: The lower triangular Cholesky decomposition of the covariance matrix.
         """
-        # TODO: Implement cholesky_decomp method
-        pass
+        chol = np.linalg.cholesky(self.covar)
+
+        return chol
 
     def simulate_gbm(self, mu=None, sigma=None):
         """
@@ -77,10 +78,8 @@ class TimeSeriesSimulate:
         # multiply through by S0 and return the cumulative product of elements along a given simulation path (axis=0).
         St = S0 * St.cumprod(axis=0)
 
-        # multiply through by initial stock prices
-        St = np.multiply.outer(self.means, St[-1, :])
-
         return St
+
 
 if __name__ == "__main__":
     means = [0.1, 0.05, 0.15]
