@@ -43,7 +43,7 @@ class TimeSeriesSimulate:
 
         return chol
 
-    def simulate_gbm(self, mu=None, sigma=None):
+    def simulate_gbm(self, mu, sigma):
         """Simulates geometric Brownian motion for one asset.
 
         Args:
@@ -59,12 +59,6 @@ class TimeSeriesSimulate:
         M = self.sims
         S0 = 100
         seed = self.seed
-
-        # extract mu and sigma from class attributes or use defaults
-        if mu is None:
-            mu = self.means[0]
-        if sigma is None:
-            sigma = np.sqrt(self.covar[0][0])
 
         # Set the random seed
         if seed is not None:
@@ -105,14 +99,21 @@ class TimeSeriesSimulate:
             d_sim[ticker] = df_sim
 
         dfs_sim = []
-        chol = self.cholesky_decomp(self.covar)
         for i in range(self.sims):
             df_sim = pd.DataFrame(columns=self.tickers)
             for col in df_sim:
                 df_sim[col] = d_sim[col][i]
-            df_sim = np.matmul(chol, df_sim.T).T
-            df_sim.set_axis(self.tickers, axis=1, inplace=True)
             dfs_sim.append(df_sim)
+
+        #TODO: Debug why correlations = 1 from GBM output
+        dfs_corr = []
+        chol = self.cholesky_decomp(self.covar)
+        for df in dfs_sim:
+            pct_df = df.pct_change().fillna(0)
+            print(pct_df['AAPL US Equity'].corr(pct_df['MSFT US Equity']))
+            pct_df = df.pct_change().fillna(0).T
+            corr_df = np.matmul(chol, pct_df).T
+            corr_df.set_axis(self.tickers, axis=1, inplace=True)
 
         return dfs_sim
 
@@ -132,6 +133,9 @@ def simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed
     """
     # Calculate mean and covariance matrix
     mean_returns = prices_returns_df.mean().to_numpy()
+
+    mean_returns = [0.14, 0.00, -0.05]
+
     cov_matrix = prices_returns_df.cov().to_numpy()
 
     # Extract tickers from columns of prices_returns_df
@@ -148,13 +152,11 @@ def simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed
 
 if __name__ == "__main__":
     # create a random stock prices returns dataframe with three columns (tickers) and 100 rows (dates)
-    np.random.seed(123)
-    prices_returns_df = pd.DataFrame(np.random.randn(100, 3), columns=['A', 'B', 'C'])
-    prices_returns_df = prices_returns_df / 100
+    prices_returns_df = pd.read_csv('sample_data.csv', index_col=0)
 
     # set input parameters
     years = 5
-    steps_per_year = 12
+    steps_per_year = 252
     seed = 123
     sims = 2
 
@@ -162,4 +164,16 @@ if __name__ == "__main__":
     gbm = simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed, sims)
 
     # display the results
-    print(gbm)
+    #print(gbm)
+
+    corr = np.array([[1, 0.7, 0.7], [0.7, 1, 0.7], [0.7, 0.7, 1]])
+
+    chol = np.linalg.cholesky(corr)
+
+    rand_data = np.random.normal(size=(3, 1000))
+
+    no_corr = pd.DataFrame(rand_data.T).corr()
+
+    sim_corr_rets = pd.DataFrame(np.matmul(chol, rand_data), index=['A', 'B', 'C']).T / 100
+
+    sim_corr_rets.corr()
