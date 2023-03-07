@@ -159,10 +159,10 @@ if __name__ == "__main__":
     prices_returns_df = pd.read_csv('sample_data.csv', index_col=0)
 
     # set input parameters
-    years = 10
+    years = 100
     steps_per_year = 252
     seed = 12345
-    sims = 2
+    sims = 100
 
     # call the simulate_stock_prices_returns function
     gbm = simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed=seed, sims=sims)
