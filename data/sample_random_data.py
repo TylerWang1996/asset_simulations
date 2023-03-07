@@ -6,7 +6,7 @@ periods = len(daterange)
 
 df = pd.DataFrame(daterange, columns=['Date'])
 
-l_assets = list('ABCEDF')
+l_assets = list('ABCEDFG')
 n_assets = len(l_assets)
 
 np.random.seed(12345)
