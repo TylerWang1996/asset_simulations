@@ -6,7 +6,7 @@ class TimeSeriesSimulate:
     """Simulates geometric Brownian motion for multiple assets.
 
     Attributes:
-        tickers (list of str): Tickers of the assets.
+        tickers (list): Tickers of the assets.
         means (numpy.ndarray): Mean returns for each asset.
         covar (numpy.ndarray): Covariance matrix of returns for each asset.
         years (int): Number of years to simulate.
@@ -32,23 +32,22 @@ class TimeSeriesSimulate:
         Returns:
             numpy.ndarray: Lower triangular matrix from Cholesky decomposition.
         """
+        v = np.sqrt(np.diag(covar))
+        outer_v = np.outer(v, v)
+        correlation = covar / outer_v
+        correlation[covar == 0] = 0
 
-        # calculate the standard deviations of the variables
-        std_devs = np.sqrt(np.diag(covar))
-
-        # divide the covariance matrix by the outer product of the standard deviations
-        corr_matrix = covar / np.outer(std_devs, std_devs)
-
-        chol = np.linalg.cholesky(corr_matrix)
+        chol = np.linalg.cholesky(correlation)
 
         return chol
 
-    def simulate_gbm(self, mu, sigma):
+    def simulate_gbm(self, mu=None, sigma=None, seed=None):
         """Simulates geometric Brownian motion for one asset.
 
         Args:
             mu (float or None): Mean return of the asset. If None, use the first element of self.means.
             sigma (float or None): Standard deviation of the asset. If None, use the square root of the first diagonal element of self.covar.
+            seed (int or None): Seed for the random number generator.
 
         Returns:
             numpy.ndarray: Simulated prices of the asset.
@@ -57,15 +56,17 @@ class TimeSeriesSimulate:
         n = self.steps_per_year * self.years
         T = self.years
         M = self.sims
-        S0 = 100
-        seed = self.seed
 
         # Set the random seed
-        if seed is not None:
-            np.random.seed(seed)
+        np.random.seed(seed)
 
         # calculate each time step
         dt = T / n
+
+        if mu is None:
+            mu = self.means[0]
+        if sigma is None:
+            sigma = np.sqrt(self.covar[0, 0])
 
         # simulation using numpy arrays
         St = np.exp(
@@ -76,8 +77,8 @@ class TimeSeriesSimulate:
         # include array of 1's
         St = np.vstack([np.ones(M), St])
 
-        # multiply through by S0 and return the cumulative product of elements along a given simulation path (axis=0).
-        St = S0 * St.cumprod(axis=0)
+        #get the returns only
+        St = St - 1
 
         return St
 
@@ -88,13 +89,15 @@ class TimeSeriesSimulate:
             list of pandas.DataFrame: Simulated prices of each asset.
         """
         n_assets = len(self.means)
+        np.random.seed(self.seed)
+        seeds = np.random.randint(low=0, high=10000, size=n_assets)
 
         d_sim = {}
         for i in range(n_assets):
             ticker = self.tickers[i]
             mu = self.means[i]
             sigma = np.sqrt(self.covar[i][i])
-            sim = self.simulate_gbm(mu, sigma)
+            sim = self.simulate_gbm(mu, sigma, seeds[i])
             df_sim = pd.DataFrame(sim)
             d_sim[ticker] = df_sim
 
@@ -105,17 +108,20 @@ class TimeSeriesSimulate:
                 df_sim[col] = d_sim[col][i]
             dfs_sim.append(df_sim)
 
-        #TODO: Debug why correlations = 1 from GBM output
-        dfs_corr = []
+        #Use cholesky decomposotion to add in correlation effect
         chol = self.cholesky_decomp(self.covar)
+        dfs_series = []
         for df in dfs_sim:
-            pct_df = df.pct_change().fillna(0)
-            print(pct_df['AAPL US Equity'].corr(pct_df['MSFT US Equity']))
-            pct_df = df.pct_change().fillna(0).T
-            corr_df = np.matmul(chol, pct_df).T
-            corr_df.set_axis(self.tickers, axis=1, inplace=True)
+            copy_df = df.copy()
+            ticker_cols = copy_df.columns
+            correl_df = pd.DataFrame(np.matmul(chol, copy_df.T)).T
+            ticker_names_dict = {old_name: new_name for old_name, new_name in zip(correl_df.columns, ticker_cols)}
+            correl_df = correl_df.rename(columns=ticker_names_dict)
+            series_df = correl_df + 1
+            series_df = series_df.cumprod(axis=0)
+            dfs_series.append(series_df)
 
-        return dfs_sim
+        return dfs_series
 
 
 def simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed, sims):
@@ -133,8 +139,6 @@ def simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed
     """
     # Calculate mean and covariance matrix
     mean_returns = prices_returns_df.mean().to_numpy()
-
-    mean_returns = [0.14, 0.00, -0.05]
 
     cov_matrix = prices_returns_df.cov().to_numpy()
 
@@ -155,25 +159,10 @@ if __name__ == "__main__":
     prices_returns_df = pd.read_csv('sample_data.csv', index_col=0)
 
     # set input parameters
-    years = 5
+    years = 10
     steps_per_year = 252
-    seed = 123
+    seed = 12345
     sims = 2
 
     # call the simulate_stock_prices_returns function
-    gbm = simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed, sims)
-
-    # display the results
-    #print(gbm)
-
-    corr = np.array([[1, 0.7, 0.7], [0.7, 1, 0.7], [0.7, 0.7, 1]])
-
-    chol = np.linalg.cholesky(corr)
-
-    rand_data = np.random.normal(size=(3, 1000))
-
-    no_corr = pd.DataFrame(rand_data.T).corr()
-
-    sim_corr_rets = pd.DataFrame(np.matmul(chol, rand_data), index=['A', 'B', 'C']).T / 100
-
-    sim_corr_rets.corr()
+    gbm = simulate_stock_prices_returns(prices_returns_df, years, steps_per_year, seed=seed, sims=sims)
