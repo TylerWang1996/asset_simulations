@@ -45,6 +45,49 @@ def portfolio_randomizer(asset_ranges, iterations=100000, seed=None):
     return df_bound_ports
 
 
+# generating ann return simulations
+
+def time_series_to_annual(df_returns):
+    grouped = df_returns.groupby(pd.Grouper(freq='A'))
+    annual_dfs = {name: group for name, group in grouped}
+
+    annual_ret_dfs = []
+
+    for i in list(annual_dfs.keys()):
+        annual_index = annual_dfs[i].copy()
+        annual_index = annual_index.cumprod()
+        ann_ret = annual_index.groupby(annual_index.index.year).tail(1)
+        ann_ret = ann_ret - 1
+        annual_ret_dfs.append(ann_ret)
+
+    ann_rets_data = pd.concat(annual_ret_dfs)
+
+    return ann_rets_data
+
+
+def portfolio_returns(df_ports, total_returns):
+    d_ports = df_ports.to_dict('index')
+    dfs = []
+
+    for key in d_ports:
+        df = total_returns.copy()
+        d_weight = d_ports[key]
+        df['Portfolio Return'] = df.dot(pd.Series(d_weight))
+        df = df[['Portfolio Return']]
+        df = df + 1
+        df.index = pd.to_datetime(df.index, format='%Y-%m-%d')
+
+        df_ann = time_series_to_annual(df)
+        df_ann.reset_index(inplace=True)
+        ##Insert split into annual returns
+        dfs.append(df_ann)
+
+    df_combined = pd.concat(dfs)
+    df_combined.reset_index(inplace=True, drop=True)
+
+    return df_combined
+
+
 if __name__ == "__main__":
     # Example usage
     asset_ranges = {'US3M T-Bill': [0.0, 0.1], '7-10Y US Treasury': [0.15, 0.35],
