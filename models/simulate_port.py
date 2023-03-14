@@ -51,7 +51,7 @@ if __name__ == "__main__":
                     'IG Credit Bonds': [0.15, 0.30], 'HY Credit Bonds': [0.10, 0.30],
                     'Equities': [0.10, 0.25], 'Commodities': [0.0, 0.10]}
 
-    sample_ranges = {'Equity': [0.2, 0.4], 'Bonds': [0.3, 0.6], 'Cash': [0.05, 0.3]}
+    sample_ranges = {'Equity': [0.2, 0.35], 'Bonds': [0.4, 0.5], 'Cash': [0.1, 0.2]}
 
     rand_port = portfolio_randomizer(sample_ranges, iterations=100000, seed=1234)
     print(rand_port.dtypes)

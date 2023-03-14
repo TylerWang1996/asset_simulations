@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 
 
-def boxplot_monthly_returns(data_df: pd.DataFrame, start_date: str = None, end_date: str = None, title: str = None) -> plt:
+def boxplot_monthly_returns(data_df: pd.DataFrame, start_date: str = None, end_date: str = None, title: str = None,
+                            figsize: tuple = (8, 6)) -> plt:
     """
     Generate a boxplot of monthly returns for financial data.
 
@@ -13,6 +14,7 @@ def boxplot_monthly_returns(data_df: pd.DataFrame, start_date: str = None, end_d
     start_date (str): The starting date to filter data (inclusive).
     end_date (str): The ending date to filter data (inclusive).
     title (str): The title of the plot.
+    figsize (tuple): The dimensions of the plot in inches. Default is (8, 6).
 
     Returns:
     plt: The matplotlib plot object.
@@ -34,7 +36,9 @@ def boxplot_monthly_returns(data_df: pd.DataFrame, start_date: str = None, end_d
     sns.set_style("white")
 
     # Generate boxplot with Seaborn
-    ax = sns.boxplot(x='Asset', y='Monthly Returns', data=data_melt_df)
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.boxplot(x='Asset', y='Monthly Returns', data=data_melt_df, ax=ax)
+    ax.set(xlabel=None)
 
     # Format y-axis with percentage formatter
     ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1, decimals=0))
@@ -90,7 +94,8 @@ def summary_stats_table(data_df: pd.DataFrame, start_date: str = None, end_date:
     return agg_stats
 
 
-def plot_corr_matrix(data_df: pd.DataFrame, start_date: str = None, end_date: str = None, title: str = None) -> plt:
+def plot_corr_matrix(data_df: pd.DataFrame, start_date: str = None, end_date: str = None, title: str = None,
+                     figsize: tuple = (10, 7)) -> plt:
     """
     Generate a correlation matrix plot for financial data.
 
@@ -99,6 +104,7 @@ def plot_corr_matrix(data_df: pd.DataFrame, start_date: str = None, end_date: st
     start_date (str): The starting date to filter data (inclusive).
     end_date (str): The ending date to filter data (inclusive).
     title (str): The title of the plot.
+    figsize (tuple): The dimensions of the plot in inches. Default is (10, 7).
 
     Returns:
     plt: The matplotlib plot object.
@@ -114,7 +120,7 @@ def plot_corr_matrix(data_df: pd.DataFrame, start_date: str = None, end_date: st
     corrmat = data_df.corr().round(2)
 
     # Set plot size and generate heatmap with Seaborn
-    plt.figure(figsize=(10, 7))
+    plt.figure(figsize=figsize)
     sns.heatmap(corrmat, vmax=1, annot=True, fmt=".2f", linewidths=.5)
     plt.xticks(rotation=30, horizontalalignment='right')
 
